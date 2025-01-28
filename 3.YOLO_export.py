@@ -1,6 +1,18 @@
+import os
+import torch
 from ultralytics import YOLO
-model = YOLO("yolov5s6u.pt")
-model.export(format="engine")#, half=True)
-tensorrt_model = YOLO("yolov5s6u.engine")
+modelname = 'yolov5s6u'
+in_shape = (1,3,1280,1280)
+fp16=True
+enginename = f"{modelname}.{in_shape}{'.FP16'if fp16 else ''}.engine"
+
+dummy_input = torch.rand(in_shape).cuda()
+model = YOLO(f"{modelname}.pt")
+
+if not os.path.isfile(enginename):
+    model.export(format="engine", batch=in_shape[0], half=fp16)
+    os.rename(f"{modelname}.engine",enginename)
+
+tensorrt_model = YOLO(enginename)
 results = tensorrt_model("https://ultralytics.com/images/bus.jpg")
 print(results)

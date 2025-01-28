@@ -4,7 +4,6 @@ import tensorrt as trt
 # TensorRT logger
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
-
 class Debayer5x5(torch.nn.Module):
     # from https://github.com/cheind/pytorch-debayer
     """Demosaicing of Bayer images using Malver-He-Cutler algorithm.
@@ -154,8 +153,8 @@ class Debayer5x5(torch.nn.Module):
             layout.BGGR: torch.roll(rggb, (1, 1), (-1, -2)),
         }.get(layout)
 
-def build_torch_model():
-    dummy_input = torch.rand((1,1,224,224)).cuda()
+def build_torch_model(shape):
+    dummy_input = torch.rand(shape).cuda()
     # Instantiate the Debayer5x5 model
     model = Debayer5x5()
     # Set the model to evaluation mode
@@ -163,6 +162,8 @@ def build_torch_model():
 
     print(model(dummy_input).shape)
 
+    torch_file_path = f'{modelname}.{shape}.pt'
+    torch.save(model.state_dict(), f'{modelname}.{shape}.pt')
     return model,dummy_input
 
 def export_torch_onnx_model(model,x,onnx_model_path):
@@ -187,6 +188,7 @@ def build_static_engine(onnx_file_path, engine_file_path, fp16=True):
         if fp16 and builder.platform_has_fast_fp16:
             print("Platform supports FP16, enabling FP16 optimization...")
             config.set_flag(trt.BuilderFlag.FP16)
+            engine_file_path = engine_file_path.replace('.trt','.FP16.trt')
 
         # Parse the ONNX file
         with open(onnx_file_path, 'rb') as model:
@@ -209,12 +211,12 @@ def build_static_engine(onnx_file_path, engine_file_path, fp16=True):
 
 
 modelname = "debayer5x5"
-model,x = build_torch_model()
-torch.save(model.state_dict(), f'{modelname}.pth')
+shape = (1,1,224,224)
 
-torch_file_path = f'{modelname}.pth'
-onnx_file_path = f'{modelname}.onnx'
-engine_file_path = f'{modelname}.trt'
+torch_file_path = f'{modelname}.{shape}.pt'
+onnx_file_path = f'{modelname}.{shape}.onnx'
+engine_file_path = f'{modelname}.{shape}.trt'
 
+model,x = build_torch_model(shape)
 export_torch_onnx_model(model,x,onnx_file_path)
 build_static_engine(onnx_file_path, engine_file_path)
