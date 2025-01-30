@@ -10,9 +10,10 @@ dummy_input = torch.rand(in_shape).cuda()
 model = YOLO(f"{modelname}.pt")
 
 if not os.path.isfile(enginename):
-    model.export(format="engine", batch=in_shape[0], half=fp16)
+    model.export(format="engine", batch=in_shape[0], half=fp16, imgsz=in_shape[-1])
     os.rename(f"{modelname}.engine",enginename)
 
 tensorrt_model = YOLO(enginename)
-results = tensorrt_model("https://ultralytics.com/images/bus.jpg")
-print(results)
+tensorrt_model.MODE(imgsz=in_shape[-1])
+results = tensorrt_model('bus.jpg')#"https://ultralytics.com/images/bus.jpg")
+print([r.boxes.conf for r in results])
